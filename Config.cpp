@@ -3,20 +3,17 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <cmath> 
 
 Config::ConfigParameters Config::config_parameters_;
 
-
-
 void Config::Initialize() {
-    
     std::ifstream config_file("config.txt");
     if (!config_file.is_open()) {
         std::cout << "Failed to open file \"config.txt\"" << std::endl;
         return;
     }
 
-    // Read parameters line-by-line.
     std::string key_value;
     while (getline(config_file, key_value)) {
         // Read line.
@@ -34,7 +31,7 @@ void Config::Initialize() {
                 config_parameters_.scheduler = value;
             }
             else {
-                std::cout << "Key \"" << key << "\" with value of \"" << value << "\" is invalid." << std::endl;
+                std::cout << "Invalid scheduler value: " << value << std::endl;
             }
         }
         else if (key == "quantum-cycles") {
@@ -52,14 +49,35 @@ void Config::Initialize() {
         else if (key == "delay-per-exec") {
             config_parameters_.delay_per_exec = std::stod(value);
         }
-        else {
-            std::cout << "File \"config.txt\" key of " << "\"" << key << "\" is invalid." << std::endl;
+        else if (key == "max-overall-mem") {
+            config_parameters_.max_overall_mem = std::stoul(value);
         }
+        else if (key == "mem-per-frame") {
+            config_parameters_.mem_per_frame = std::stoul(value);
+        }
+        else if (key == "min-mem-per-proc") {
+            config_parameters_.min_mem_per_proc = std::stoul(value);
+        }
+        else if (key == "max-mem-per-proc") {
+            config_parameters_.max_mem_per_proc = std::stoul(value);
+        }
+        else {
+            std::cout << "Invalid config key: " << key << std::endl;
+        }
+    }
+
+
+    if (config_parameters_.max_overall_mem == 0 || config_parameters_.mem_per_frame == 0) {
+        std::cerr << "Invalid configuration: max-overall-mem and mem-per-frame must be non-zero." << std::endl;
+        std::exit(EXIT_FAILURE); // Exit the program if critical parameters are invalid
+    }
+
+    if (config_parameters_.max_overall_mem % config_parameters_.mem_per_frame != 0) {
+        std::cerr << "Invalid configuration: max-overall-mem must be a multiple of mem-per-frame." << std::endl;
+        std::exit(EXIT_FAILURE);
     }
 }
 
-Config::ConfigParameters Config::GetConfigParameters()
-{
+Config::ConfigParameters Config::GetConfigParameters() {
     return config_parameters_;
 }
-

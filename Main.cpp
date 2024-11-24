@@ -6,6 +6,7 @@
 #include "Console.h"
 #include "Config.h"
 #include "RRScheduler.h"
+#include "MemoryManager.h" // Include MemoryManager
 #include <random>
 
 
@@ -16,12 +17,12 @@ int main() {
     ConsoleManager console_manager;
     bool running = true;
 
-    // Initialize min and max process instructions
+    // Initialize MemoryManager
+    MemoryManager memory_manager;
 
     // Initialize scheduler
     FCFS_Scheduler fcfs_scheduler(0);
     RR_Scheduler rr_scheduler(0, 0);
-
 
     // Initialize scheduling test
     std::thread scheduler_thread;
@@ -55,7 +56,6 @@ int main() {
 
         std::vector<std::shared_ptr<Console>> consoles = console_manager.getConsoles();
 
-        // Current console is not the main menu and the exit command is entered.
         if (command == "exit" && (console_manager.getCurrentConsoleName() != "MAIN_MENU")) {
             system("cls");
             // Find the console with the name "MAIN_MENU"
@@ -71,7 +71,6 @@ int main() {
             }
         }
 
-        // Current console is the main menu and the exit command is entered.
         else if (command == "exit" && console_manager.getCurrentConsoleName() == "MAIN_MENU") {
             return false;
         }
@@ -81,12 +80,14 @@ int main() {
             std::random_device rd;
             std::mt19937 gen(rd());
             std::uniform_int_distribution<> dist(Config::GetConfigParameters().min_ins, Config::GetConfigParameters().max_ins);
+            std::uniform_int_distribution<> mem_dist(Config::GetConfigParameters().min_mem_per_proc, Config::GetConfigParameters().max_mem_per_proc);
 
+            int memory_required = mem_dist(gen); // Memory required by process
             if (Config::GetConfigParameters().scheduler == "fcfs") {
                 if (fcfs_scheduler.isValidProcessName(tokens[2]) == false) {
                     std::cout << "Process with name \"" + tokens[2] + "\" already exists" << std::endl;
                 }
-                else {
+                else if (memory_manager.allocateMemory(++process_count, memory_required)) {
                     int commands_per_process = dist(gen);
                     Process* new_process = new Process(tokens[2], commands_per_process);
                     fcfs_scheduler.add_process(new_process);
@@ -95,15 +96,18 @@ int main() {
                     screen_process_name = tokens[2];
                     console_manager.setCurrentConsole(new_console);
                     fcfs_scheduler.print_process_details(tokens[2], 0);
-
+                }
+                else {
+                    std::cout << "Failed to allocate memory for process \"" + tokens[2] + "\"." << std::endl;
                 }
             }
+
 
             if (Config::GetConfigParameters().scheduler == "rr") {
                 if (rr_scheduler.isValidProcessName(tokens[2]) == false) {
                     std::cout << "Process with name \"" + tokens[2] + "\" already exists" << std::endl;
                 }
-                else {
+                else if (memory_manager.allocateMemory(++process_count, memory_required)) {
                     int commands_per_process = dist(gen);
                     Process* new_process = new Process(tokens[2], commands_per_process);
                     rr_scheduler.add_process(new_process);
@@ -113,45 +117,52 @@ int main() {
                     console_manager.setCurrentConsole(new_console);
                     rr_scheduler.print_process_details(tokens[2], 0);
                 }
+                else {
+                    std::cout << "Failed to allocate memory for process \"" + tokens[2] + "\"." << std::endl;
+                }
             }
+        }
+
+        else if (tokens[0] == "screen" && tokens[1] == "-ls") {
+            if (Config::GetConfigParameters().scheduler == "fcfs") {
+                fcfs_scheduler.screen_ls();
+            }
+
+            if (Config::GetConfigParameters().scheduler == "rr") {
+                rr_scheduler.screen_ls();
+            }
+
+
         }
 
         else if (command == "show") {
             console_manager.drawAllConsoles();
         }
 
-        // The current console is not the main menu and the screen -s command is entered.
-        else if (tokens.size() == 3 && tokens[0] == "screen" && tokens[1] == "-s" && tokens[2] != "" && console_manager.getCurrentConsoleName() != "MAIN_MENU") {
+        else if (command == "process-smi") {
+            // Display memory state
+            memory_manager.displayMemoryState();
 
-            std::cout << "Unkown Command" << std::endl;
-        }
-
-        // The current ocnsole is not the main menu and the screen -r command is entered.
-        else if (tokens.size() == 3 && tokens[0] == "screen" && tokens[1] == "-r" && tokens[2] != "" && console_manager.getCurrentConsoleName() != "MAIN_MENU") {
-
-            std::cout << "Unkown Command" << std::endl;
-        }
-        else if (command == "clear") {
-            clearScreen();
-        }
-
-        else if (console_manager.getCurrentConsoleName() != "MAIN_MENU" && command == "process-smi") {
+            // Display scheduler details
             if (Config::GetConfigParameters().scheduler == "fcfs") {
-                fcfs_scheduler.print_process_details(screen_process_name, 1);
-
+                fcfs_scheduler.print_running_processes();
             }
 
             if (Config::GetConfigParameters().scheduler == "rr") {
-                rr_scheduler.print_process_details(screen_process_name, 1);
+                rr_scheduler.print_running_processes();
             }
-
-
         }
+
+
 
         else if (command == "initialize") {
             initialized = true;
             Config::Initialize();
             std::cout << "Config initialized with \"" << "config.txt\" parameters" << std::endl;
+
+            // Initialize MemoryManager
+            memory_manager.initialize(Config::GetConfigParameters().max_overall_mem,
+                Config::GetConfigParameters().mem_per_frame);
 
             if (Config::GetConfigParameters().scheduler == "fcfs") {
                 fcfs_scheduler.SetCpuCore(Config::GetConfigParameters().num_cpu);
@@ -165,7 +176,11 @@ int main() {
             }
         }
 
-        // "scheduler-stop"
+
+        else if (command == "vmstat") {
+            memory_manager.displayDetailedStats(); 
+        }
+
         else if (command == "scheduler-stop") {
             if (scheduler_testing) {
                 scheduler_testing = false;
@@ -180,35 +195,40 @@ int main() {
             }
         }
 
-        // "scheduler-test"
         else if (command == "scheduler-test") {
             std::random_device rd;
             std::mt19937 gen(rd());
+            std::uniform_int_distribution<> mem_dist(Config::GetConfigParameters().min_mem_per_proc, Config::GetConfigParameters().max_mem_per_proc);
             std::uniform_int_distribution<> dist(Config::GetConfigParameters().min_ins, Config::GetConfigParameters().max_ins);
 
             if (!scheduler_testing) {
                 scheduler_testing = true;
+
                 scheduler_thread = std::thread([&]() {
                     while (scheduler_testing) {
-                        int commands_per_process = dist(gen);
+                        // Generate a single dummy process (batch-process-freq = 1)
+                        int memory_required = mem_dist(gen);  // Memory required for process
+                        int commands_per_process = dist(gen); // Instructions for process
+                        std::string process_name = "process" + std::to_string(++process_count);
 
-                        if (Config::GetConfigParameters().scheduler == "fcfs") {
-                            fcfs_scheduler.add_process(new Process("process" + std::to_string(++process_count), commands_per_process));
+                        // Allocate memory for the process
+                        if (memory_manager.allocateMemory(process_count, memory_required)) {
+                            // Add process to the appropriate scheduler
+                            if (Config::GetConfigParameters().scheduler == "fcfs") {
+                                fcfs_scheduler.add_process(new Process(process_name, commands_per_process));
+                            }
+                            else if (Config::GetConfigParameters().scheduler == "rr") {
+                                rr_scheduler.add_process(new Process(process_name, commands_per_process));
+                            }
+
                         }
-
-                        if (Config::GetConfigParameters().scheduler == "rr") {
-                            rr_scheduler.add_process(new Process("process" + std::to_string(++process_count), commands_per_process));
-                        }
-
-
-
-
-                        std::this_thread::sleep_for(std::chrono::milliseconds((int)(Config::GetConfigParameters().batch_process_freq * 1000)));
-
+                      
+                        std::this_thread::sleep_for(std::chrono::milliseconds(
+                            static_cast<int>(Config::GetConfigParameters().batch_process_freq * 1000)));
                     }
                     });
-                scheduler_thread.detach();
 
+                scheduler_thread.detach();
                 std::cout << "Scheduler test execution started.\n";
             }
             else {
@@ -216,59 +236,6 @@ int main() {
             }
         }
 
-        // "screen -ls"
-        else if (tokens[0] == "screen" && tokens[1] == "-ls") {
-            if (Config::GetConfigParameters().scheduler == "fcfs") {
-                fcfs_scheduler.screen_ls();
-            }
-
-            if (Config::GetConfigParameters().scheduler == "rr") {
-                rr_scheduler.screen_ls();
-            }
-
-
-        }
-
-        // "screen -r"
-        else if (tokens.size() == 3 && tokens[0] == "screen" && tokens[1] == "-r") {
-            std::cout << "screen -r " << tokens[2];
-            if (console_manager.getCurrentConsoleName() == "MAIN_MENU") {
-                if (Config::GetConfigParameters().scheduler == "fcfs") {
-                    fcfs_scheduler.print_process_details(tokens[2], 0);
-                }
-
-                if (Config::GetConfigParameters().scheduler == "rr") {
-                    rr_scheduler.print_process_details(tokens[2], 0);
-                }
-
-            }
-            else {
-                if (Config::GetConfigParameters().scheduler == "fcfs") {
-                    fcfs_scheduler.print_process_details(tokens[2], 1);
-                }
-
-                if (Config::GetConfigParameters().scheduler == "rr") {
-                    rr_scheduler.print_process_details(tokens[2], 1);
-                }
-
-
-            }
-
-            screen_process_name = tokens[2];
-            std::shared_ptr<Console> new_console(new Console("VIEW_SCREEN", 0, 0, 0));
-            console_manager.setCurrentConsole(new_console);
-        }
-
-        else if (command == "report-util") {
-            if (Config::GetConfigParameters().scheduler == "fcfs") {
-                fcfs_scheduler.ReportUtil();
-            }
-
-            if (Config::GetConfigParameters().scheduler == "rr") {
-                rr_scheduler.ReportUtil();
-            }
-
-        }
 
         else {
             std::cout << "Unknown command: " << command << std::endl;
