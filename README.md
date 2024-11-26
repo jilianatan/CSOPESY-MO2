@@ -1,5 +1,5 @@
-# CSOPESY Process Scheduler and CLI
-This project features a Process Scheduler with a Command Line Interface (CLI), enabling users to explore and manage various CPU scheduling algorithms. Designed to mimic the process scheduling within an operating system, the emulator provides a hands-on experience with core scheduling concepts, allowing users to perform system-level operations and interact with the scheduler through a simple CLI.
+# CSOPESY Multitasking OS
+This project implements a Multitasking Operating System with features focusing on memory management, process scheduling, and command-line interface (CLI) functionalities. It is designed to simulate key OS behaviors like memory allocation, process scheduling, and system-level commands. The system supports First-Come-First-Serve (FCFS) and Round-Robin (RR) schedulers while integrating memory visualization.
 
 ## Members (S11, Group 5)
 - Ang, Mark Kevin 
@@ -21,6 +21,7 @@ The main entry point for the application is located in the Main.cpp file, where 
 - Console.cpp / Console.h: Handles console output and input operations.
 - ConsoleManager.cpp / ConsoleManager.h: Oversees console-specific functionalities.
 - FCFSScheduler.cpp / FCFSScheduler.h: Implements the First-Come, First-Served (FCFS) scheduling algorithm.
+- MemoryManager.cpp / MemoryManager.h:  Base class for memory allocation and handles memory operations.
 - RRScheduler.cpp / RRScheduler.h: Implements the Round Robin (RR) scheduling algorithm.
 - Process.cpp / Process.h: Defines and manages processes within the scheduler.
 - Thread.cpp / Thread.h: Provides threading utilities.
