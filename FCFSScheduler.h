@@ -15,11 +15,13 @@ private:
     std::queue<Process*> process_queue;
     std::vector<std::thread> cpu_threads;
     std::atomic<bool> running;
-    std::mutex mtx;
+   // std::mutex mtx;
     std::condition_variable cv;
     int num_cores;
     std::list<Process*> running_processes;
     std::list<Process*> finished_processes;
+
+    mutable std::mutex mtx;
 
     void cpu_worker(int core_id);
 
@@ -27,6 +29,11 @@ public:
 
     FCFS_Scheduler(int cores);
     ~FCFS_Scheduler();
+
+    size_t getIdleTicks() const;
+    size_t getActiveTicks() const;
+    size_t getTotalTicks() const;
+
 
     void add_process(Process* proc);
     void start();

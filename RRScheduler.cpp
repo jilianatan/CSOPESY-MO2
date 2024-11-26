@@ -16,6 +16,22 @@ void RR_Scheduler::add_process(Process* proc) {
     cv.notify_one();
 }
 
+size_t RR_Scheduler::getIdleTicks() const {
+    std::lock_guard<std::mutex> lock(mtx);
+    return process_queue.empty() ? 1 : 0; // Simulate idle tick when queue is empty
+}
+
+size_t RR_Scheduler::getActiveTicks() const {
+    std::lock_guard<std::mutex> lock(mtx);
+    return running_processes.size(); // Active ticks are equivalent to running processes
+}
+
+size_t RR_Scheduler::getTotalTicks() const {
+    std::lock_guard<std::mutex> lock(mtx);
+    return getIdleTicks() + getActiveTicks(); // Total ticks include both idle and active
+}
+
+
 void RR_Scheduler::start() {
     running = true;
     start_time = std::chrono::steady_clock::now(); // Record the start time

@@ -15,16 +15,24 @@ private:
     bool running;
     std::vector<std::thread> cpu_threads;
     std::queue<Process*> process_queue;
-    std::mutex mtx;
+   // std::mutex mtx;
     std::condition_variable cv;
     std::chrono::steady_clock::time_point start_time;
     std::list<Process*> running_processes;
     std::list<Process*> finished_processes;
     void cpu_worker(int core_id);
+    mutable std::mutex mtx;
+
 
 public:
     RR_Scheduler(int cores, int quantum);
     ~RR_Scheduler();
+
+    size_t getIdleTicks() const;
+    size_t getActiveTicks() const;
+    size_t getTotalTicks() const;
+
+
     void add_process(Process* proc);
     void start();
     void stop();

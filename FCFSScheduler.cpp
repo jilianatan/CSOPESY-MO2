@@ -13,6 +13,22 @@ FCFS_Scheduler::~FCFS_Scheduler() {
     stop();
 }
 
+size_t FCFS_Scheduler::getIdleTicks() const {
+    std::lock_guard<std::mutex> lock(mtx);
+    return process_queue.empty() ? 1 : 0; // Simulate idle tick when queue is empty
+}
+
+size_t FCFS_Scheduler::getActiveTicks() const {
+    std::lock_guard<std::mutex> lock(mtx);
+    return running_processes.size(); // Active ticks are equivalent to running processes
+}
+
+size_t FCFS_Scheduler::getTotalTicks() const {
+    std::lock_guard<std::mutex> lock(mtx);
+    return getIdleTicks() + getActiveTicks(); // Total ticks include both idle and active
+}
+
+
 void FCFS_Scheduler::add_process(Process* proc) {
     std::lock_guard<std::mutex> lock(mtx);
     process_queue.push(proc);
