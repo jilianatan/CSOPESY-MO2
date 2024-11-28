@@ -1,32 +1,29 @@
-#pragma once
+#ifndef FLATMEMORYALLOCATOR_H
+#define FLATMEMORYALLOCATOR_H
+
 #include <vector>
-#include <queue>
-#include <string>
-#include <iostream>
+#include <cstddef>
 
 struct MemoryBlock {
-    int start;  // Start address
-    int size;   // Size of the block
-    bool free;  // True if the block is free
-    int process_id; // Process ID occupying the block (if applicable)
+    size_t start_address;
+    size_t size;
+    bool free;
+    int process_id;
+
+    MemoryBlock(size_t start, size_t sz) : start_address(start), size(sz), free(true), process_id(-1) {}
 };
 
 class FlatMemoryAllocator {
-private:
-    int total_memory;                        // Total memory size
-    std::vector<MemoryBlock> memory_blocks; // List of memory blocks
-    std::queue<int> backing_store;          // Process IDs in the backing store
-
 public:
-    FlatMemoryAllocator(int total_memory);
+    FlatMemoryAllocator(size_t total_memory);
+    int allocate(int process_id, size_t size);
+    void deallocate(int process_id);
+    void printMemoryState() const;
+    std::vector<MemoryBlock> getMemoryBlocks() const;
 
-    const std::vector<MemoryBlock>& getMemoryBlocks() const {
-        return memory_blocks;
-    }
-
-    int allocate(int process_id, int size);  // Allocates memory for a process
-    void deallocate(int process_id);         // Frees memory used by a process
-    void swapOutOldest();                    // Swaps out the oldest process to backing store
-    void printMemoryState();                 // Prints the current memory state
-    int calculateExternalFragmentation();    // Calculates external fragmentation
+private:
+    size_t total_memory;
+    std::vector<MemoryBlock> memory_blocks;
 };
+
+#endif // FLATMEMORYALLOCATOR_H

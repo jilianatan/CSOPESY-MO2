@@ -13,6 +13,7 @@ private:
 public:
 
     std::string name;
+
     int total_commands;
     int executed_commands;
     std::ofstream log_file;

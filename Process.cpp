@@ -1,12 +1,15 @@
+// Process.cpp
+
 #include "process.h"
 #include <iomanip>
 #include <ctime>
 #include <sstream>
 #include <iostream>
 
-int Process::next_process_id = 1; 
-Process::Process(const std::string& pname, int commands)
-    : name(pname), total_commands(commands), executed_commands(0), core_id(-1), process_id(next_process_id++) {
+int Process::next_process_id = 1;
+
+Process::Process(const std::string& pname, int commands, size_t mem) // Update constructor
+    : name(pname), total_commands(commands), executed_commands(0), core_id(-1), process_id(next_process_id++), memory(mem) { // Initialize memory
     start_time = std::chrono::system_clock::now();
 }
 
@@ -33,6 +36,7 @@ std::string Process::get_status() const {
     }
     return oss.str();
 }
+
 void Process::displayProcessInfo() const {
     //print the process information
 
@@ -42,10 +46,8 @@ void Process::displayProcessInfo() const {
     if (executed_commands < total_commands) {
         std::cout << "Current Instruction Line: " << executed_commands << "\n";
         std::cout << "Lines of Code: " << total_commands << "\n";
-
     }
     else {
         std::cout << "Finished!\n";
     }
-
 }

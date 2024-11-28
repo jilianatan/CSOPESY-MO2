@@ -1,4 +1,6 @@
 #include "PagingAllocator.h"
+#include <algorithm>
+#include <queue>
 
 // Constructor
 PagingAllocator::PagingAllocator(int total_memory, int frame_size)
@@ -15,8 +17,13 @@ bool PagingAllocator::allocate(int process_id, int size) {
         // Find a free frame
         auto it = std::find(frame_usage.begin(), frame_usage.end(), false);
         if (it == frame_usage.end()) {
-            // No free frame found, fail allocation
-            return false;
+            // No free frame found, swap out the oldest process
+            swapOutOldest();
+            it = std::find(frame_usage.begin(), frame_usage.end(), false);
+            if (it == frame_usage.end()) {
+                // Still no free frame, fail allocation
+                return false;
+            }
         }
 
         int frame_index = it - frame_usage.begin();
@@ -32,8 +39,6 @@ bool PagingAllocator::allocate(int process_id, int size) {
 
 // Deallocates memory for a process
 void PagingAllocator::deallocate(int process_id) {
-    if (page_tables.find(process_id) == page_tables.end()) return;
-
     for (const auto& entry : page_tables[process_id]) {
         if (entry.valid) {
             frame_usage[entry.frame_number] = false; // Mark frame as free
@@ -52,23 +57,23 @@ void PagingAllocator::pageIn(int process_id, int page_number) {
         // Find a free frame
         auto it = std::find(frame_usage.begin(), frame_usage.end(), false);
         if (it == frame_usage.end()) {
-            // No free frame, cannot page in
-            std::cerr << "No free frame available for paging in process " << process_id << "\n";
-            return;
+            // No free frame, swap out the oldest process
+            swapOutOldest();
+            it = std::find(frame_usage.begin(), frame_usage.end(), false);
+            if (it == frame_usage.end()) {
+                // Still no free frame, cannot page in
+                std::cerr << "No free frame available for paging in process " << process_id << "\n";
+                return;
+            }
         }
 
         int frame_index = it - frame_usage.begin();
         frame_usage[frame_index] = true;
         entry.frame_number = frame_index;
         entry.valid = true;
-
-        pages_paged_in++; // Increment the counter
-        std::cout << "Paged in process " << process_id << ", page " << page_number
-            << " into frame " << frame_index << "\n";
+        ++pages_paged_in;
     }
 }
-
-
 
 // Removes a page from memory
 void PagingAllocator::pageOut(int process_id, int page_number) {
@@ -77,34 +82,55 @@ void PagingAllocator::pageOut(int process_id, int page_number) {
 
     auto& entry = page_tables[process_id][page_number];
     if (entry.valid) {
-        frame_usage[entry.frame_number] = false; // Free the frame
+        frame_usage[entry.frame_number] = false;
         entry.valid = false;
-
-        pages_paged_out++; // Increment the counter
-        std::cout << "Paged out process " << process_id << ", page " << page_number
-            << " from frame " << entry.frame_number << "\n";
+        ++pages_paged_out;
     }
 }
 
+// Swaps out the oldest process to backing store
+void PagingAllocator::swapOutOldest() {
+    if (backing_store.empty()) return;
+
+    int oldest_process_id = backing_store.front();
+    backing_store.pop();
+
+    deallocate(oldest_process_id);
+}
 
 // Prints the current memory state
 void PagingAllocator::printMemoryState() {
-    std::cout << "Paging Memory State:\n";
-    for (size_t i = 0; i < frame_usage.size(); ++i) {
-        std::cout << "Frame " << i << ": " << (frame_usage[i] ? "Occupied" : "Free") << "\n";
-    }
+    size_t used_memory = 0;
+    size_t free_memory = total_frames * frame_size;
 
-    std::cout << "Page Tables:\n";
-    for (const auto& pair : page_tables) {
-        int process_id = pair.first;                      // Extract process ID
-        const auto& page_table = pair.second;             // Extract page table
-
-        std::cout << "Process " << process_id << ":\n";
-        for (size_t i = 0; i < page_table.size(); ++i) {
-            std::cout << "  Page " << i << " -> Frame " << page_table[i].frame_number
-                << " (" << (page_table[i].valid ? "Valid" : "Invalid") << ")\n";
+    for (const auto& frame : frame_usage) {
+        if (frame) {
+            used_memory += frame_size;
+            free_memory -= frame_size;
         }
     }
-    std::cout << "-----------------------------\n";
+
+    std::cout << "Used memory: " << used_memory << " KB\n";
+    std::cout << "Free memory: " << free_memory << " KB\n";
+    std::cout << "Pages paged in: " << pages_paged_in << "\n";
+    std::cout << "Pages paged out: " << pages_paged_out << "\n";
 }
 
+// Prints a high-level overview of memory allocation
+void PagingAllocator::printProcessSMI() {
+    std::cout << "Process SMI:\n";
+    for (const auto& entry : page_tables) {
+        std::cout << "Process ID: " << entry.first << ", Pages: " << entry.second.size() << "\n";
+    }
+}
+
+// Prints fine-grained memory details
+void PagingAllocator::printVMStat() {
+    std::cout << "VMStat:\n";
+    for (const auto& entry : page_tables) {
+        std::cout << "Process ID: " << entry.first << "\n";
+        for (const auto& page : entry.second) {
+            std::cout << "  Page Frame: " << page.frame_number << ", Valid: " << page.valid << "\n";
+        }
+    }
+}

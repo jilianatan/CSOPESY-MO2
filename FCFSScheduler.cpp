@@ -7,10 +7,18 @@
 #include <random>
 #include "Config.h"
 
-FCFS_Scheduler::FCFS_Scheduler(int cores) : num_cores(cores), running(true) {}
+FCFS_Scheduler::FCFS_Scheduler(int cores, size_t total_memory)
+    : num_cores(cores), running(true), total_memory(total_memory), used_memory(0), free_memory(total_memory) {}
 
 FCFS_Scheduler::~FCFS_Scheduler() {
     stop();
+}
+
+void FCFS_Scheduler::vmstat() const {
+    std::lock_guard<std::mutex> lock(mtx);
+    std::cout << "Total memory: " << total_memory << "KB\n";
+    std::cout << "Used memory: " << used_memory << "KB\n";
+    std::cout << "Free memory: " << free_memory << "KB\n";
 }
 
 size_t FCFS_Scheduler::getIdleTicks() const {
@@ -29,11 +37,18 @@ size_t FCFS_Scheduler::getTotalTicks() const {
 }
 
 
+// Update add_process to handle memory limits
 void FCFS_Scheduler::add_process(Process* proc) {
     std::lock_guard<std::mutex> lock(mtx);
-    process_queue.push(proc);
-    cv.notify_one();
-    //std::cout << "Added process " << proc->name << " to the queue.\n";
+    if (used_memory + proc->memory <= total_memory) {
+        process_queue.push(proc);
+        used_memory += proc->memory;
+        free_memory -= proc->memory;
+        cv.notify_one();
+    }
+    else {
+        std::cout << "Not enough memory to add process " << proc->name << ".\n";
+    }
 }
 
 void FCFS_Scheduler::start() {
@@ -107,9 +122,8 @@ void FCFS_Scheduler::cpu_worker(int core_id) {
             std::lock_guard<std::mutex> lock(mtx);
             running_processes.remove(proc);
             finished_processes.push_back(proc);
-
-
-
+            used_memory -= proc->memory;
+            free_memory += proc->memory;
         }
     }
 }

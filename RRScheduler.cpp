@@ -4,16 +4,31 @@
 #include "Config.h"
 #include <algorithm>
 
-RR_Scheduler::RR_Scheduler(int cores, int quantum) : num_cores(cores), time_quantum(quantum), running(false) {}
+RR_Scheduler::RR_Scheduler(int cores, int quantum, size_t total_memory)
+    : num_cores(cores), time_quantum(quantum), running(false), total_memory(total_memory), used_memory(0), free_memory(total_memory) {}
 
 RR_Scheduler::~RR_Scheduler() {
     stop();
 }
 
+void RR_Scheduler::vmstat() const {
+    std::lock_guard<std::mutex> lock(mtx);
+    std::cout << "Total memory: " << total_memory << "KB\n";
+    std::cout << "Used memory: " << used_memory << "KB\n";
+    std::cout << "Free memory: " << free_memory << "KB\n";
+}
+
 void RR_Scheduler::add_process(Process* proc) {
     std::lock_guard<std::mutex> lock(mtx);
-    process_queue.push(proc);
-    cv.notify_one();
+    if (used_memory + proc->memory <= total_memory) {
+        process_queue.push(proc);
+        used_memory += proc->memory;
+        free_memory -= proc->memory;
+        cv.notify_one();
+    }
+    else {
+        std::cout << "Not enough memory to add process " << proc->name << ".\n";
+    }
 }
 
 size_t RR_Scheduler::getIdleTicks() const {
@@ -94,18 +109,16 @@ void RR_Scheduler::cpu_worker(int core_id) {
         }
 
         if (proc->executed_commands < proc->total_commands) {
-
             add_process(proc); // Re-add process if it's not completed
             std::lock_guard<std::mutex> lock(mtx);
             running_processes.remove(proc);
-
         }
         else {
-            //std::cout << "Process " << proc->name << " completed.\n";
             std::lock_guard<std::mutex> lock(mtx);
             running_processes.remove(proc);
             finished_processes.push_back(proc);
-
+            used_memory -= proc->memory;
+            free_memory += proc->memory;
         }
     }
 }

@@ -23,9 +23,13 @@ private:
     void cpu_worker(int core_id);
     mutable std::mutex mtx;
 
+    size_t total_memory;
+    size_t used_memory;
+    size_t free_memory;
+
 
 public:
-    RR_Scheduler(int cores, int quantum);
+    RR_Scheduler(int cores, int quantum, size_t total_memory);
     ~RR_Scheduler();
 
     size_t getIdleTicks() const;
@@ -47,4 +51,6 @@ public:
     void ReportUtil();
     float GetCpuUtilization();
     void print_CPU_UTIL();
+
+    void vmstat() const;
 };

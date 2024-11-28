@@ -25,8 +25,13 @@ private:
 
     void cpu_worker(int core_id);
 
+    size_t total_memory;
+    size_t used_memory;
+    size_t free_memory;
+
 public:
 
+    FCFS_Scheduler(int cores, size_t total_memory);
     FCFS_Scheduler(int cores);
     ~FCFS_Scheduler();
 
@@ -48,4 +53,6 @@ public:
 
     bool isValidProcessName(const std::string& process_name);
     void print_CPU_UTIL();
+
+    void vmstat() const;
 };
