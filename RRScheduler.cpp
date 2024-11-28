@@ -124,9 +124,10 @@ void RR_Scheduler::cpu_worker(int core_id) {
 }
 void RR_Scheduler::screen_ls() {
     std::lock_guard<std::mutex> lock(mtx);
-    print_CPU_UTIL();
-    print_running_processes();
-    print_finished_processes();
+    //print_CPU_UTIL();
+    //print_running_processes();
+    //print_finished_processes();
+    ReportUtil();
 
 }
 

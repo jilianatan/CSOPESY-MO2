@@ -8,10 +8,12 @@
 
 int Process::next_process_id = 1;
 
-Process::Process(const std::string& pname, int commands, size_t mem) // Update constructor
-    : name(pname), total_commands(commands), executed_commands(0), core_id(-1), process_id(next_process_id++), memory(mem) { // Initialize memory
+Process::Process(const std::string& pname, int commands, size_t mem)
+    : name(pname), total_commands(commands), executed_commands(0), core_id(-1),
+    process_id(next_process_id++), memory(mem) { // Initialize memory
     start_time = std::chrono::system_clock::now();
 }
+
 
 Process::~Process() {
     log_file.close();

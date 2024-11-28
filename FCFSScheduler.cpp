@@ -147,9 +147,10 @@ void FCFS_Scheduler::print_finished_processes() {
     std::cout << "----------------\n";
 }
 void FCFS_Scheduler::screen_ls() {
-    print_CPU_UTIL();
-    print_running_processes();
-    print_finished_processes();
+    //print_CPU_UTIL();
+    //print_running_processes();
+    //print_finished_processes();
+    ReportUtil();
 }
 void FCFS_Scheduler::print_process_details(const std::string& process_name, int screen) {
     std::lock_guard<std::mutex> lock(mtx);
